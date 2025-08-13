@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sidekick"
+version = "0.1.0"
+description = "Sidekick enhances your AI Studio experience by facilitating code editing in your editor of choice"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "websockets>=12.0",
+    "watchdog>=3.0.0",
+    "click>=8.0.0",
+]
+
+[project.scripts]
+sidekick = "sidekick.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/sidekick"
+Repository = "https://github.com/yourusername/sidekick.git"
+Issues = "https://github.com/yourusername/sidekick/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sidekick*"]
+
+[tool.setuptools.package-data]
+sidekick = ["py.typed"]
