@@ -11,6 +11,9 @@ watchdog>=3.0.0
 # CLI interface
 click>=8.0.0
 
+# Version comparison
+packaging>=21.0
+
 # Development dependencies (optional)
 # pytest>=7.0.0
 # pytest-asyncio>=0.21.0

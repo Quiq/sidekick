@@ -53,7 +53,7 @@ def main(port: int, workspace: str, log_level: str):
     click.echo(f"   Host: {host}")
     click.echo(f"   Port: {port}")
     click.echo(f"   Workspace: {workspace}")
-    click.echo(f"   WebSocket URL: ws://{host}:{port}/ws?tenant=<tenant>&projectId=<projectId>")
+    click.echo(f"   WebSocket URL: ws://{host}:{port}/ws?tenant=<tenant>&projectId=<projectId>&sidekickVersion=<version>")
     click.echo()
 
     # Create and configure the server

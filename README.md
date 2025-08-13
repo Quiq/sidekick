@@ -74,6 +74,20 @@ Default settings:
 
 In the Configuration Panel, go to Preferences sub-panel and toggle on 'Edit code with Sidekick'
 
+#### Manual WebSocket Connection (for testing)
+
+If you need to connect manually for testing purposes:
+
+```javascript
+// JavaScript example
+const ws = new WebSocket('ws://localhost:43001/ws?tenant=mycompany&projectId=project123&sidekickVersion=1.0.0');
+```
+
+```bash
+# Using wscat for testing
+wscat -c "ws://localhost:43001/ws?tenant=mycompany&projectId=project123&sidekickVersion=1.0.0"
+```
+
 ### 3. Edit Locally
 
 Open the file in your favorite editor:

@@ -10,9 +10,11 @@ from pathlib import Path
 from typing import Dict, Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.responses import JSONResponse
+from packaging import version
 
 from .file_manager import FileManager
 from .watcher import FileWatcher
+from . import __version__
 
 
 logger = logging.getLogger(__name__)
@@ -96,10 +98,11 @@ class SidekickServer:
         async def websocket_endpoint(
             websocket: WebSocket,
             tenant: str = Query(..., description="Tenant identifier"),
-            projectId: str = Query(..., description="Project identifier")
+            projectId: str = Query(..., description="Project identifier"),
+            sidekickVersion: str = Query(..., description="Client Sidekick version")
         ):
             """WebSocket endpoint for code synchronization."""
-            await self.handle_websocket_connection(websocket, tenant, projectId)
+            await self.handle_websocket_connection(websocket, tenant, projectId, sidekickVersion)
 
         # Start file watcher when app starts
         @app.on_event("startup")
@@ -121,8 +124,26 @@ class SidekickServer:
 
         return app
 
-    async def handle_websocket_connection(self, websocket: WebSocket, tenant: str, project_id: str):
+    async def handle_websocket_connection(self, websocket: WebSocket, tenant: str, project_id: str, client_version: str):
         """Handle a WebSocket connection for a specific tenant/project."""
+        # Check client version if provided - must match exactly
+        if client_version:
+            try:
+                client_ver = version.parse(client_version)
+                server_ver = version.parse(__version__)
+
+                if client_ver != server_ver:
+                    logger.error(
+                        f"Version mismatch: Client version {client_version} does not match server version {__version__}. "
+                        f"Please run 'git pull' to update to the matching version."
+                    )
+                    await websocket.close(code=1008, reason="Version mismatch - please update Sidekick")
+                    return
+            except Exception as e:
+                logger.error(f"Could not parse sidekick version '{client_version}': {e}")
+                await websocket.close(code=1008, reason="Invalid version format")
+                return
+
         connection_key = f"{tenant}/{project_id}"
         await self.connection_manager.connect(websocket, connection_key)
 
