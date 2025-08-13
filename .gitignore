@@ -193,5 +193,3 @@ cython_debug/
 .aistudio_tenant_test/
 .aistudio_epoch_test/
 
-# Test files
-test_*.py

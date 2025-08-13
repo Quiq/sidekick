@@ -188,11 +188,12 @@ class SidekickServer:
         except Exception as e:
             logger.error(f"Error handling codeUpdated message: {e}")
 
-    async def _on_file_changed(self, project_key: str, file_path: Path):
+    async def _on_file_changed(self, tenant: str, projectId: str, file_path: Path):
         """Callback for when a file changes locally."""
         try:
             # Read the updated file content
-            code = await self.file_manager.read_code(project_key)
+            project_key = f"{tenant}/{projectId}"
+            code = await self.file_manager.read_code(tenant, projectId)
 
             if code is not None:
                 # Send codeUpdated message to all connected clients for this project
