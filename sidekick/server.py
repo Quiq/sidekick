@@ -6,6 +6,7 @@ import json
 import logging
 import asyncio
 import time
+import hashlib
 from pathlib import Path
 from typing import Dict, Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
@@ -69,6 +70,10 @@ class SidekickServer:
         self.file_manager = FileManager(self.workspace)
         self.connection_manager = ConnectionManager()
         self.file_watcher = None
+
+        # Track content hashes to prevent sync loops
+        # Format: {project_key: content_hash}
+        self.content_hashes: Dict[str, str] = {}
 
         # Ensure workspace exists
         self.workspace.mkdir(parents=True, exist_ok=True)
@@ -176,17 +181,26 @@ class SidekickServer:
         try:
             payload = message.get("payload", {})
             code = payload.get("code", "")
+            project_key = f"{tenant}/{project_id}"
+
+            # Calculate and store content hash to prevent sync loops
+            content_hash = self._calculate_content_hash(code)
+            self.content_hashes[project_key] = content_hash
 
             # Write code to file system
             success = await self.file_manager.write_code(tenant, project_id, code)
 
             if success:
-                logger.info(f"Code updated for {tenant}/{project_id}")
+                logger.info(f"Code updated for {tenant}/{project_id} (hash: {content_hash[:8]})")
             else:
                 logger.error(f"Failed to write code for {tenant}/{project_id}")
 
         except Exception as e:
             logger.error(f"Error handling codeUpdated message: {e}")
+
+    def _calculate_content_hash(self, content: str) -> str:
+        """Calculate SHA-256 hash of content for loop prevention."""
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
     async def _on_file_changed(self, tenant: str, projectId: str, file_path: Path):
         """Callback for when a file changes locally."""
@@ -196,6 +210,18 @@ class SidekickServer:
             code = await self.file_manager.read_code(tenant, projectId)
 
             if code is not None:
+                # Calculate hash of current content
+                current_hash = self._calculate_content_hash(code)
+
+                # Check if this content is the same as what we last processed
+                # If so, skip sending to prevent sync loops
+                if project_key in self.content_hashes and self.content_hashes[project_key] == current_hash:
+                    logger.debug(f"Skipping file change notification for {project_key} - content hash matches (loop prevention)")
+                    return
+
+                # Update stored hash and send notification
+                self.content_hashes[project_key] = current_hash
+
                 # Send codeUpdated message to all connected clients for this project
                 message = {
                     "type": "codeUpdated",
@@ -206,7 +232,7 @@ class SidekickServer:
                 }
 
                 await self.connection_manager.send_to_project(project_key, message)
-                logger.info(f"Sent file change notification for project: {project_key}")
+                logger.info(f"Sent file change notification for project: {project_key} (hash: {current_hash[:8]})")
 
         except Exception as e:
             logger.error(f"Error handling file change for {project_key}: {e}")
