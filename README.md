@@ -70,36 +70,11 @@ Default settings:
 
 ### 2. Connect from AI Studio
 
-In the Configuration Panel, go to Preferences sub-panel and toggle on 'Edit code with Sidekick'
-
-#### Manual WebSocket Connection (for testing)
-
-If you need to connect manually for testing purposes:
-
-```javascript
-// JavaScript example
-const ws = new WebSocket('ws://localhost:43001/ws?tenant=mycompany&projectId=project123&sidekickVersion=1.0.0');
-```
-
-```bash
-# Using wscat for testing
-wscat -c "ws://localhost:43001/ws?tenant=mycompany&projectId=project123&sidekickVersion=1.0.0"
-```
+In the Configuration Panel, go to Preferences sub-panel and toggle on 'Edit code with Sidekick'. Circle should go from red to green when conntected
 
 ### 3. Edit Locally
 
-Open the file in your favorite editor:
-
-```bash
-# VS Code
-code ~/.aistudio/my_company/ai_app_123/functions.py
-
-# Vim
-vim ~/.aistudio/my_company/ai_app_123/functions.py
-
-# Any editor
-open ~/.aistudio/my_company/ai_app_123/functions.py
-```
+Open your workspace (`~/aistudio`) in your favorite editor/IDE
 
 Changes you make locally will automatically sync back to AI Studio! In addition, edits made in the Function Editor
 will be synced to your local disk
