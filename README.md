@@ -28,7 +28,7 @@ conda activate sidekick
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Quiq/sidekick.git 
 cd sidekick
 
 # Install in development mode (recommended)
@@ -41,7 +41,7 @@ If you prefer not to use Miniconda:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Quiq/sidekick.git 
 cd sidekick
 
 # Install in development mode
