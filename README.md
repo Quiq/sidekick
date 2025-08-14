@@ -66,7 +66,7 @@ sidekick --help
 Default settings:
 - **Port**: 43001
 - **Host**: localhost (127.0.0.1) - hardcoded for security
-- **Workspace**: `~/.aistudio`
+- **Workspace**: `~/aistudio`
 
 ### 2. Connect from AI Studio
 
