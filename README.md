@@ -35,8 +35,6 @@ cd sidekick
 pip install -e .
 ```
 
-```
-
 ### Alternative Installation (Not Recommended)
 
 If you prefer not to use Miniconda:
@@ -106,14 +104,12 @@ open ~/.aistudio/my_company/ai_app_123/functions.py
 Changes you make locally will automatically sync back to AI Studio! In addition, edits made in the Function Editor
 will be synced to your local disk
 
-``
-
 ## File Structure
 
 Sidekick organizes your projects in a clean directory structure:
 
 ```
-~/.aistudio/                    # Default workspace
+~/aistudio/                    # Default workspace
 ├── tenant1/                    # Tenant: "tenant1"
 │   ├── project_alpha/          # Project: "project_alpha"
 │   │   └── functions.py       # Python code for this project
