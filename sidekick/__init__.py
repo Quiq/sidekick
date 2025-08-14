@@ -6,8 +6,7 @@ in your editor of choice through bidirectional WebSocket synchronization.
 """
 
 __version__ = "0.1.0"
-__author__ = "Sidekick Team"
-__email__ = "team@sidekick.dev"
+__author__ = "Quiq"
 
 from .server import SidekickServer
 from .cli import main

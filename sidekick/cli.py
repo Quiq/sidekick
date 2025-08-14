@@ -23,7 +23,7 @@ from .server import SidekickServer
     "-w",
     default=None,
     type=click.Path(),
-    help="Workspace directory for synced code (default: ~/.aistudio)"
+    help="Workspace directory for synced code (default: ~/aistudio)"
 )
 @click.option(
     "--log-level",
@@ -40,7 +40,7 @@ def main(port: int, workspace: str, log_level: str):
     """
     # Set default workspace if not provided
     if workspace is None:
-        workspace = os.path.expanduser("~/.aistudio")
+        workspace = os.path.expanduser("~/aistudio")
 
     # Ensure workspace directory exists
     workspace_path = Path(workspace)
