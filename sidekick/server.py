@@ -7,6 +7,7 @@ import logging
 import asyncio
 import time
 import hashlib
+import re
 from pathlib import Path
 from typing import Dict, Set
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
@@ -131,6 +132,13 @@ class SidekickServer:
 
     async def handle_websocket_connection(self, websocket: WebSocket, tenant: str, project_id: str, client_version: str):
         """Handle a WebSocket connection for a specific tenant/project."""
+        # Security check: Validate origin header
+        origin = websocket.headers.get("origin")
+        if not self._is_valid_origin(origin):
+            logger.warning(f"WebSocket connection refused - invalid origin: {origin}")
+            await websocket.close(code=1008, reason="Invalid origin")
+            return
+
         # Check client version if provided - must match exactly
         if client_version:
             try:
@@ -236,3 +244,51 @@ class SidekickServer:
 
         except Exception as e:
             logger.error(f"Error handling file change for {project_key}: {e}")
+
+    def _is_valid_origin(self, origin: str) -> bool:
+        """
+        Validate that the origin header matches https://*.goquiq.com pattern.
+
+        Args:
+            origin: The origin header value from the WebSocket request
+
+        Returns:
+            bool: True if origin is valid, False otherwise
+        """
+        if not origin:
+            logger.warning("No origin header provided")
+            return False
+
+        # Extract hostname from origin (must be HTTPS)
+        # Origin format must be: https://subdomain.goquiq.com
+        try:
+            # Origin must use HTTPS protocol only
+            if not origin.startswith('https://'):
+                logger.warning(f"Invalid origin rejected: {origin} (must use HTTPS)")
+                return False
+
+            # Remove protocol prefix
+            hostname = origin.split('://', 1)[1]
+
+            # Remove port if present
+            hostname = hostname.split(':')[0]
+
+            # Hostname cannot be empty after removing protocol
+            if not hostname:
+                logger.warning(f"Invalid origin rejected: {origin} (empty hostname)")
+                return False
+
+            # Check if hostname matches *.goquiq.com pattern
+            # This allows goquiq.com and any subdomain of goquiq.com
+            goquiq_pattern = r'^([a-zA-Z0-9-]+\.)*goquiq\.com$'
+
+            if re.match(goquiq_pattern, hostname):
+                logger.info(f"Valid origin accepted: {origin}")
+                return True
+            else:
+                logger.warning(f"Invalid origin rejected: {origin} (hostname: {hostname})")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error parsing origin '{origin}': {e}")
+            return False
