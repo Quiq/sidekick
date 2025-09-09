@@ -14,6 +14,9 @@ click>=8.0.0
 # Version comparison
 packaging>=21.0
 
+# JWT token handling
+PyJWT>=2.8.0
+
 # Development dependencies (optional)
 # pytest>=7.0.0
 # pytest-asyncio>=0.21.0

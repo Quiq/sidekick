@@ -38,11 +38,11 @@ class CodeFileHandler(FileSystemEventHandler):
 
         # Extract tenant and project_id from path
         try:
-            # Path should be: workspace/tenant/project_id/functions.py
+            # Path should be: workspace/projects/tenant/project_id/functions.py
             relative_path = file_path.relative_to(self.workspace)
-            if len(relative_path.parts) == 3:  # tenant/project_id/functions.py
-                tenant = relative_path.parts[0]
-                project_id = relative_path.parts[1]
+            if len(relative_path.parts) == 4 and relative_path.parts[0] == "projects":  # projects/tenant/project_id/functions.py
+                tenant = relative_path.parts[1]
+                project_id = relative_path.parts[2]
 
                 logger.info(f"File modified: {file_path} (tenant: {tenant}, project: {project_id})")
 

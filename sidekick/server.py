@@ -8,9 +8,10 @@ import asyncio
 import time
 import hashlib
 import re
+import jwt
 from pathlib import Path
-from typing import Dict, Set
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from typing import Dict, Set, Optional, Tuple
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from packaging import version
 
@@ -101,14 +102,9 @@ class SidekickServer:
             })
 
         @app.websocket("/ws")
-        async def websocket_endpoint(
-            websocket: WebSocket,
-            tenant: str = Query(..., description="Tenant identifier"),
-            projectId: str = Query(..., description="Project identifier"),
-            sidekickVersion: str = Query(..., description="Client Sidekick version")
-        ):
+        async def websocket_endpoint(websocket: WebSocket):
             """WebSocket endpoint for code synchronization."""
-            await self.handle_websocket_connection(websocket, tenant, projectId, sidekickVersion)
+            await self.handle_websocket_connection(websocket)
 
         # Start file watcher when app starts
         @app.on_event("startup")
@@ -130,7 +126,7 @@ class SidekickServer:
 
         return app
 
-    async def handle_websocket_connection(self, websocket: WebSocket, tenant: str, project_id: str, client_version: str):
+    async def handle_websocket_connection(self, websocket: WebSocket):
         """Handle a WebSocket connection for a specific tenant/project."""
         # Security check: Validate origin header
         origin = websocket.headers.get("origin")
@@ -138,6 +134,15 @@ class SidekickServer:
             logger.warning(f"WebSocket connection refused - invalid origin: {origin}")
             await websocket.close(code=1008, reason="Invalid origin")
             return
+
+        # Extract JWT token from sub-protocol
+        jwt_info = self._extract_jwt_from_subprotocol(websocket)
+        if not jwt_info:
+            logger.warning("WebSocket connection refused - no valid JWT token in sub-protocol")
+            await websocket.close(code=1008, reason="Missing or invalid JWT token")
+            return
+
+        tenant, project_id, client_version = jwt_info
 
         # Check client version if provided - must match exactly
         if client_version:
@@ -292,3 +297,81 @@ class SidekickServer:
         except Exception as e:
             logger.error(f"Error parsing origin '{origin}': {e}")
             return False
+
+    def _extract_jwt_from_subprotocol(self, websocket: WebSocket) -> Optional[Tuple[str, str, str]]:
+        """
+        Extract JWT token from WebSocket sub-protocol and decode claims.
+
+        Args:
+            websocket: The WebSocket connection
+
+        Returns:
+            Tuple of (tenant, project_id, sidekick_version) if successful, None otherwise
+        """
+        try:
+            # Get sub-protocols from the WebSocket headers
+            subprotocols = websocket.headers.get("sec-websocket-protocol", "")
+            if not subprotocols:
+                logger.warning("No sub-protocols provided in WebSocket connection")
+                return None
+
+            # Find the sidekick sub-protocol
+            protocols = [p.strip() for p in subprotocols.split(",")]
+            sidekick_protocol = None
+
+            for protocol in protocols:
+                if protocol.startswith("sidekick-"):
+                    sidekick_protocol = protocol
+                    break
+
+            if not sidekick_protocol:
+                logger.warning("No sidekick sub-protocol found")
+                return None
+
+            # Extract JWT token from the protocol name
+            # Format: sidekick-<jwt_token>
+            if not sidekick_protocol.startswith("sidekick-"):
+                logger.warning(f"Invalid sidekick protocol format: {sidekick_protocol}")
+                return None
+
+            jwt_token = sidekick_protocol[9:]  # Remove "sidekick-" prefix
+
+            if not jwt_token:
+                logger.warning("Empty JWT token in sidekick protocol")
+                return None
+
+            # Decode JWT without verification (as specified for first pass)
+            try:
+                # Decode without verification and algorithm specification
+                decoded = jwt.decode(jwt_token, options={"verify_signature": False})
+
+                # Extract required claims
+                tenant = decoded.get("tenant")
+                project_id = decoded.get("projectId")
+                sidekick_version = decoded.get("sidekickVersion")
+
+                if not tenant:
+                    logger.warning("Missing 'tenant' claim in JWT")
+                    return None
+
+                if not project_id:
+                    logger.warning("Missing 'projectId' claim in JWT")
+                    return None
+
+                if not sidekick_version:
+                    logger.warning("Missing 'sidekickVersion' claim in JWT")
+                    return None
+
+                logger.info(f"Successfully extracted JWT claims: tenant={tenant}, projectId={project_id}, version={sidekick_version}")
+                return (tenant, project_id, sidekick_version)
+
+            except jwt.DecodeError as e:
+                logger.error(f"Failed to decode JWT token: {e}")
+                return None
+            except Exception as e:
+                logger.error(f"Error processing JWT claims: {e}")
+                return None
+
+        except Exception as e:
+            logger.error(f"Error extracting JWT from sub-protocol: {e}")
+            return None

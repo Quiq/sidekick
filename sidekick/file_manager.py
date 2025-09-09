@@ -19,7 +19,7 @@ class FileManager:
 
     def _get_project_dir(self, tenant: str, project_id: str) -> Path:
         """Get the directory path for a specific tenant/project."""
-        return self.workspace / tenant / project_id
+        return self.workspace / "projects" / tenant / project_id
 
     def _get_functions_file(self, tenant: str, project_id: str) -> Path:
         """Get the functions.py file path for a specific tenant/project."""
@@ -99,10 +99,11 @@ class FileManager:
         try:
             tenant_projects = []
 
-            if not self.workspace.exists():
+            projects_dir = self.workspace / "projects"
+            if not projects_dir.exists():
                 return tenant_projects
 
-            for tenant_dir in self.workspace.iterdir():
+            for tenant_dir in projects_dir.iterdir():
                 if tenant_dir.is_dir():
                     for project_dir in tenant_dir.iterdir():
                         if project_dir.is_dir():

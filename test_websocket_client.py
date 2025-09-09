@@ -7,6 +7,7 @@ import asyncio
 import json
 import time
 import websockets
+import jwt
 from pathlib import Path
 from sidekick import __version__
 
@@ -15,21 +16,43 @@ SERVER_URL = "ws://localhost:43001"
 TENANT = "test_company"
 PROJECT_ID = "test_project"
 WORKSPACE_DIR = Path("~/.aistudio").expanduser()
-FUNCTIONS_FILE = WORKSPACE_DIR / TENANT / PROJECT_ID / "functions.py"
+FUNCTIONS_FILE = WORKSPACE_DIR / "projects" / TENANT / PROJECT_ID / "functions.py"
+
+def create_jwt_token(tenant: str, project_id: str, sidekick_version: str) -> str:
+    """Create a JWT token with the required claims."""
+    payload = {
+        "tenant": tenant,
+        "projectId": project_id,
+        "sidekickVersion": sidekick_version,
+        "iat": int(time.time()),  # Issued at time
+        "exp": int(time.time()) + 3600  # Expires in 1 hour
+    }
+
+    # For testing, we'll use a simple secret (in production this should be secure)
+    secret = "test-secret-key"
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return token
 
 async def test_websocket_client():
     """Test WebSocket client that sends a message and listens for responses."""
 
-    # Construct WebSocket URL with required parameters
-    ws_url = f"{SERVER_URL}/ws?tenant={TENANT}&projectId={PROJECT_ID}&sidekickVersion={__version__}"
+    # Create JWT token
+    jwt_token = create_jwt_token(TENANT, PROJECT_ID, __version__)
+
+    # Construct WebSocket URL (no query parameters)
+    ws_url = f"{SERVER_URL}/ws"
+
+    # Create sub-protocol header
+    subprotocol = f"sidekick-{jwt_token}"
 
     print(f"🔌 Connecting to: {ws_url}")
+    print(f"🎫 Using sub-protocol: sidekick-<jwt_token>")
     print(f"📁 Expected file location: {FUNCTIONS_FILE}")
     print()
 
     try:
-        # Connect to WebSocket
-        async with websockets.connect(ws_url) as websocket:
+        # Connect to WebSocket with sub-protocol
+        async with websockets.connect(ws_url, subprotocols=[subprotocol]) as websocket:
             print("✅ WebSocket connected successfully!")
             print("👂 Listening for messages... (Press Ctrl+C to exit)")
             print()

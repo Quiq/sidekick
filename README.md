@@ -28,7 +28,7 @@ conda activate sidekick
 
 ```bash
 # Clone the repository
-git clone https://github.com/Quiq/sidekick.git 
+git clone https://github.com/Quiq/sidekick.git
 cd sidekick
 
 # Install in development mode (recommended)
@@ -41,7 +41,7 @@ If you prefer not to use Miniconda:
 
 ```bash
 # Clone the repository
-git clone https://github.com/Quiq/sidekick.git 
+git clone https://github.com/Quiq/sidekick.git
 cd sidekick
 
 # Install in development mode
@@ -85,12 +85,13 @@ Sidekick organizes your projects in a clean directory structure:
 
 ```
 ~/aistudio/                    # Default workspace
-├── tenant1/                    # Tenant: "tenant1"
-│   ├── project_alpha/          # Project: "project_alpha"
-│   │   └── functions.py       # Python code for this project
-│   └── my_ai_app/             # Project: "my_ai_app"
-│       └── functions.py       # Python code for this project
-└── tenant2/                   # Tenant: "tenant2"
-    └── experiment_123/        # Project: "experiment_123"
-        └── functions.py       # Python code for this project
+└── projects/                  # All projects are nested under this directory
+    ├── tenant1/               # Tenant: "tenant1"
+    │   ├── project_alpha/     # Project: "project_alpha"
+    │   │   └── functions.py   # Python code for this project
+    │   └── my_ai_app/         # Project: "my_ai_app"
+    │       └── functions.py   # Python code for this project
+    └── tenant2/               # Tenant: "tenant2"
+        └── experiment_123/    # Project: "experiment_123"
+            └── functions.py   # Python code for this project
 ```
