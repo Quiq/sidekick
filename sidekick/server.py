@@ -31,13 +31,13 @@ class ConnectionManager:
         # Map of project_key -> set of websockets
         self.active_connections: Dict[str, Set[WebSocket]] = {}
 
-    async def connect(self, websocket: WebSocket, project_key: str):
+    async def connect(self, websocket: WebSocket, project_key: str, subprotocol: str = None):
         """Accept a new WebSocket connection for a project key."""
-        await websocket.accept()
+        await websocket.accept(subprotocol=subprotocol)
         if project_key not in self.active_connections:
             self.active_connections[project_key] = set()
         self.active_connections[project_key].add(websocket)
-        logger.info(f"WebSocket connected for project: {project_key}")
+        logger.info(f"WebSocket connected for project: {project_key}, subprotocol: {subprotocol}")
 
     def disconnect(self, websocket: WebSocket, project_key: str):
         """Remove a WebSocket connection."""
@@ -143,7 +143,7 @@ class SidekickServer:
             await websocket.close(code=1008, reason="Missing or invalid JWT token")
             return
 
-        jwt_token, tenant, project_id, client_version = jwt_result
+        jwt_token, tenant, project_id, client_version, accepted_subprotocol = jwt_result
 
         # Verify JWT token via API
         if not await self._verify_jwt_token(jwt_token, tenant):
@@ -305,7 +305,7 @@ class SidekickServer:
             logger.error(f"Error parsing origin '{origin}': {e}")
             return False
 
-    def _extract_jwt_from_subprotocol(self, websocket: WebSocket) -> Optional[Tuple[str, str, str, str]]:
+    def _extract_jwt_from_subprotocol(self, websocket: WebSocket) -> Optional[Tuple[str, str, str, str, str]]:
         """
         Extract JWT token from WebSocket sub-protocol and decode claims.
 
@@ -313,7 +313,7 @@ class SidekickServer:
             websocket: The WebSocket connection
 
         Returns:
-            Tuple of (jwt_token, tenant, project_id, sidekick_version) if successful, None otherwise
+            Tuple of (jwt_token, tenant, project_id, sidekick_version, accepted_subprotocol) if successful, None otherwise
         """
         try:
             # Get sub-protocols from the WebSocket headers
@@ -370,7 +370,7 @@ class SidekickServer:
                     return None
 
                 logger.info(f"Successfully extracted JWT claims: tenant={tenant}, projectId={project_id}, version={sidekick_version}")
-                return (jwt_token, tenant, project_id, sidekick_version)
+                return (jwt_token, tenant, project_id, sidekick_version, sidekick_protocol)
 
             except jwt.DecodeError as e:
                 logger.error(f"Failed to decode JWT token: {e}")
