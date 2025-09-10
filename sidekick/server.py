@@ -170,7 +170,7 @@ class SidekickServer:
                 return
 
         connection_key = f"{tenant}/{project_id}"
-        await self.connection_manager.connect(websocket, connection_key)
+        await self.connection_manager.connect(websocket, connection_key, websocket.headers.get("sec-websocket-protocol", ""))
 
         try:
             while True:
