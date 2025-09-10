@@ -9,6 +9,7 @@ import time
 import hashlib
 import re
 import jwt
+import requests
 from pathlib import Path
 from typing import Dict, Set, Optional, Tuple
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -136,13 +137,19 @@ class SidekickServer:
             return
 
         # Extract JWT token from sub-protocol
-        jwt_info = self._extract_jwt_from_subprotocol(websocket)
-        if not jwt_info:
+        jwt_result = self._extract_jwt_from_subprotocol(websocket)
+        if not jwt_result:
             logger.warning("WebSocket connection refused - no valid JWT token in sub-protocol")
             await websocket.close(code=1008, reason="Missing or invalid JWT token")
             return
 
-        tenant, project_id, client_version = jwt_info
+        jwt_token, tenant, project_id, client_version = jwt_result
+
+        # Verify JWT token via API
+        if not await self._verify_jwt_token(jwt_token, tenant):
+            logger.warning(f"WebSocket connection refused - JWT verification failed for tenant: {tenant}")
+            await websocket.close(code=1008, reason="JWT verification failed")
+            return
 
         # Check client version if provided - must match exactly
         if client_version:
@@ -298,7 +305,7 @@ class SidekickServer:
             logger.error(f"Error parsing origin '{origin}': {e}")
             return False
 
-    def _extract_jwt_from_subprotocol(self, websocket: WebSocket) -> Optional[Tuple[str, str, str]]:
+    def _extract_jwt_from_subprotocol(self, websocket: WebSocket) -> Optional[Tuple[str, str, str, str]]:
         """
         Extract JWT token from WebSocket sub-protocol and decode claims.
 
@@ -306,7 +313,7 @@ class SidekickServer:
             websocket: The WebSocket connection
 
         Returns:
-            Tuple of (tenant, project_id, sidekick_version) if successful, None otherwise
+            Tuple of (jwt_token, tenant, project_id, sidekick_version) if successful, None otherwise
         """
         try:
             # Get sub-protocols from the WebSocket headers
@@ -363,7 +370,7 @@ class SidekickServer:
                     return None
 
                 logger.info(f"Successfully extracted JWT claims: tenant={tenant}, projectId={project_id}, version={sidekick_version}")
-                return (tenant, project_id, sidekick_version)
+                return (jwt_token, tenant, project_id, sidekick_version)
 
             except jwt.DecodeError as e:
                 logger.error(f"Failed to decode JWT token: {e}")
@@ -375,3 +382,58 @@ class SidekickServer:
         except Exception as e:
             logger.error(f"Error extracting JWT from sub-protocol: {e}")
             return None
+
+    async def _verify_jwt_token(self, jwt_token: str, tenant: str) -> bool:
+        """
+        Verify JWT token by calling the tenant's verification API.
+
+        Args:
+            jwt_token: The JWT token to verify
+            tenant: The tenant identifier for constructing the API URL
+
+        Returns:
+            True if token is valid (API returns 204), False otherwise
+        """
+        try:
+            # Construct the verification URL
+            verification_url = f"https://{tenant}.goquiq.com/api/v1/sidekick-verify"
+
+            # Prepare headers
+            headers = {
+                "X-Quiq-Sidekick-Token": jwt_token,
+                "User-Agent": f"Sidekick/{__version__}"
+            }
+
+            logger.debug(f"Verifying JWT token with {verification_url}")
+
+            # Make the verification request with a timeout
+            # Use asyncio to run the blocking request in a thread pool
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: requests.get(
+                    verification_url,
+                    headers=headers,
+                    timeout=10.0  # 10 second timeout
+                )
+            )
+
+            # Check if verification succeeded (204 No Content)
+            if response.status_code == 204:
+                logger.info(f"JWT verification successful for tenant: {tenant}")
+                return True
+            else:
+                logger.warning(f"JWT verification failed for tenant: {tenant}, status code: {response.status_code}")
+                return False
+
+        except requests.exceptions.Timeout:
+            logger.error(f"JWT verification timeout for tenant: {tenant}")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.error(f"JWT verification connection error for tenant: {tenant}")
+            return False
+        except requests.exceptions.RequestException as e:
+            logger.error(f"JWT verification request failed for tenant: {tenant}, error: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error during JWT verification for tenant: {tenant}, error: {e}")
+            return False
